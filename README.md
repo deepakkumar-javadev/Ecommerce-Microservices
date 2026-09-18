@@ -6,45 +6,29 @@ The application is divided into independent services for user management, produc
 
 ## Architecture
 
-
-                         Client
-                           |
-                           v
-                    API Gateway :8080
-                           |
-        +------------------+------------------+
-        |                  |                  |
-        v                  v                  v
-   User Service      Product Service      Cart Service
-      :8082               :8083               :8085
-        |                  |                  |
-        v                  v                  v
-     User DB           Product DB           Cart DB
-
-                           |
-                           v
-                    Order Service :8086
-                           |
-              +------------+------------+
-              |                         |
-              v                         v
-       Payment Service           Inventory Service
-           :8087                     :8084
-              |                         |
-              v                         v
-          Razorpay                 Inventory DB
-              |
-              v
-          Payment DB
-
-                           |
-                           v
-                         Kafka
-                           |
-                           v
-                 Notification Service
-                        :8088
-
+```text
+Client
+  ↓
+API Gateway :8080
+  ↓
+User Service :8082 → User DB
+  ↓
+Product Service :8083 → Product DB
+  ↓
+Cart Service :8085 → Cart DB
+  ↓
+Order Service :8086
+  ↓
+Payment Service :8087 → Razorpay → Payment DB
+  ↓
+Inventory Service :8084 → Inventory DB
+  ↓
+Kafka
+  ↓
+Notification Service :8088
+  ↓
+Email Notification
+```
 
 ## Services
 
@@ -85,10 +69,9 @@ User Service uses Spring Security, JWT and BCrypt for authentication.
 
 ### Login Flow
 
-
-Client -> Email + Password -> User Service -> Authentication -> JWT Token -> Client ->  Authorization: Bearer <JWT> -> Protected APIs
-
-
+```text
+Client → Email + Password → User Service → Authentication → JWT Token → Client → Authorization: Bearer <JWT> → Protected APIs
+```
 
 ### User Service APIs
 
@@ -101,24 +84,22 @@ Client -> Email + Password -> User Service -> Authentication -> JWT Token -> Cli
 
 Admin access is enforced using:
 
-
+```java
 @PreAuthorize("hasRole('ADMIN')")
-
+```
 
 ## Main E-Commerce Flow
 
-User → Register / Login → User Service → JWT → Product Service → Select Product → Cart Service → Add to Cart → Order Service
-                                                        ↓
-                                      ┌─────────────────┴─────────────────┐
-                                      ↓                                   ↓
-                              Payment Service                     Inventory Service
-                                      ↓                                   ↓
-                                  Razorpay                         Inventory DB
-                                      ↓
-                                    Kafka
-                                      ↓
-                            Notification Service
-
+```text
+User → Register / Login → User Service → JWT
+→ Product Service → Select Product
+→ Cart Service → Add to Cart
+→ Order Service → Payment Service
+→ Razorpay → Payment Success
+→ Inventory Service → Stock Update
+→ Kafka → Notification Service
+→ Email Notification
+```
 
 ## Order Processing
 
@@ -130,58 +111,23 @@ Similarly, cart data is managed by the Cart Service.
 
 ### COD Flow
 
-
-Create Order
-     |
-     v
-Order Service
-     |
-     v
-Payment Service
-     |
-     | Payment = PENDING
-     v
-Order Confirmed
-     |
-     v
-Inventory Processing
-     |
-     v
-Order Delivered
-     |
-     v
-Payment = PAID
-
+```text
+Create Order → Order Service → Payment Service → Payment = PENDING
+→ Order Confirmed → Inventory Processing → Order Delivered
+→ Payment = PAID → **order.delivered** → Kafka
+→ Notification Service → Email Notification
+```
 
 ### Online Payment Flow
 
-
-Create Order
-     |
-     v
-Order Service
-     |
-     v
-Payment Service
-     |
-     v
-Create Razorpay Order
-     |
-     v
-Razorpay Checkout
-     |
-     v
-Payment
-     |
-     v
-Razorpay Webhook
-     |
-     v
-Signature Verification
-     |
-     v
-Payment = PAID
-
+```text
+Create Order → Order Service → Payment Service
+→ Create Razorpay Order → Razorpay Checkout
+→ Payment → Razorpay Webhook
+→ Signature Verification → Payment = PAID
+→ Inventory Processing → Kafka
+→ Notification Service → Email Notification
+```
 
 ## Payment Integration
 
@@ -194,9 +140,10 @@ The Payment Service supports:
 
 For COD orders, the Payment Service creates a payment record with:
 
-
+```text
 Payment Method : COD
 Payment Status : PENDING
+```
 
 When the order is delivered, the payment status is updated to `PAID`.
 
@@ -219,40 +166,28 @@ Razorpay API calls use Resilience4j retry and rate-limiter mechanisms.
 
 Apache Kafka is used for asynchronous communication between services.
 
-Current application topics include:
+### Kafka Topics
 
-
+```text
 order.created
 inventory.reserve
 inventory.reserved
 inventory.updated
 payment.success
 order.delivered
+```
 
+### Example
 
-Example:
+```text
+Order Service → **order.created** → Kafka → Inventory / Other Consumers
+```
 
-Order Service
-     |
-     | order.created
-     v
-   Kafka
-     |
-     v
-Inventory / Other Consumers
+### Another Example
 
-Another example:
-
-
-Order Service
-     |
-     | order.delivered
-     v
-   Kafka
-     |
-     v
-Notification Service
-
+```text
+Order Service → **order.delivered** → Kafka → Notification Service
+```
 
 Kafka helps keep service responsibilities separate and avoids unnecessary direct dependencies between services.
 
@@ -300,7 +235,7 @@ Services access their own database instead of directly accessing another service
 
 The application is maintained using separate repositories for each microservice.
 
-
+```text
 Ecommerce-Microservices
 │
 ├── API Gateway
@@ -330,11 +265,11 @@ The main `Ecommerce-Microservices` repository contains project documentation and
 
 The project currently uses:
 
-
+```text
 MySQL
 Kafka
 ZooKeeper
-
+```
 
 Kafka is currently configured with ZooKeeper for local development.
 
@@ -361,7 +296,7 @@ Sensitive configuration values should not be committed to GitHub.
 
 Typical configuration includes:
 
-
+```text
 DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
@@ -369,7 +304,7 @@ RAZORPAY_KEY_ID
 RAZORPAY_KEY_SECRET
 MAIL_USERNAME
 MAIL_PASSWORD
-
+```
 
 For local development, configure these values in the appropriate application configuration or environment variables.
 
@@ -377,15 +312,13 @@ For local development, configure these values in the appropriate application con
 
 The project follows a feature-based Git workflow.
 
-
+```text
 feature/*
-     |
-     v
-  develop
-     |
-     v
-    main
-
+    ↓
+develop
+    ↓
+main
+```
 
 Development work is first performed on a feature branch.
 
@@ -408,8 +341,10 @@ Individual microservices are maintained in separate repositories:
 
 Repository links will be added here as the individual repositories are published.
 
-## Author
+## Developer
 
 **Deepak Kumar**
 
 Java Backend Developer
+
+**Tech:** Java 17 · Spring Boot · Microservices · REST APIs · Kafka · MySQL · Razorpay
