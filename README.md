@@ -108,16 +108,16 @@ Admin access is enforced using:
 ## Main E-Commerce Flow
 
 User → Register / Login → User Service → JWT → Product Service → Select Product → Cart Service → Add to Cart → Order Service
-
-
-Order Service
-      ↓
-      ├──→ Payment Service → Razorpay
-      │
-      └──→ Inventory Service → Inventory DB
-
-Payment / Inventory Events → Kafka → Notification Service
-
+                                                        ↓
+                                      ┌─────────────────┴─────────────────┐
+                                      ↓                                   ↓
+                              Payment Service                     Inventory Service
+                                      ↓                                   ↓
+                                  Razorpay                         Inventory DB
+                                      ↓
+                                    Kafka
+                                      ↓
+                            Notification Service
 
 
 ## Order Processing
