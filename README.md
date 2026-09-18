@@ -86,22 +86,8 @@ User Service uses Spring Security, JWT and BCrypt for authentication.
 ### Login Flow
 
 
-Client
-  |
-  | Email + Password
-  v
-User Service
-  |
-  | Authentication
-  v
-JWT Token
-  |
-  v
-Client
-  |
-  | Authorization: Bearer <JWT>
-  v
-Protected APIs
+Client -> Email + Password -> User Service -> Authentication -> JWT Token -> Client ->  Authorization: Bearer <JWT> -> Protected APIs
+
 
 
 ### User Service APIs
@@ -121,40 +107,18 @@ Admin access is enforced using:
 
 ## Main E-Commerce Flow
 
+User → Register / Login → User Service → JWT → Product Service → Select Product → Cart Service → Add to Cart → Order Service
 
-User
- |
- | Register / Login
- v
-User Service
- |
- | JWT
- v
-Product Service
- |
- | Select Product
- v
-Cart Service
- |
- | Add to Cart
- v
+
 Order Service
- |
- +----------------------+
- |                      |
- v                      v
-Payment Service    Inventory Service
- |                      |
- v                      |
-Razorpay                 |
- |                      |
- +----------+-----------+
-            |
-            v
-          Kafka
-            |
-            v
-Notification Service
+      ↓
+      ├──→ Payment Service → Razorpay
+      │
+      └──→ Inventory Service → Inventory DB
+
+Payment / Inventory Events → Kafka → Notification Service
+
+
 
 ## Order Processing
 
